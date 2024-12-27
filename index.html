@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Editor</title>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+<div class="container mx-auto">
+    <h1 class="text-2xl font-bold mb-4">Markdown Editor</h1>
+    
+    <!-- Controls -->
+    <div class="mb-4 flex gap-4 items-center">
+        <button 
+            id="screenshot-btn" 
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Take Screenshot
+        </button>
+        <div class="flex items-center gap-2">
+            <label for="width" class="text-sm">Width:</label>
+            <input type="number" id="width" value="650" class="border rounded px-2 py-1 w-20">
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="height" class="text-sm">Height:</label>
+            <input type="number" id="height" value="700" class="border rounded px-2 py-1 w-20">
+        </div>
+    </div>
+
+    <!-- Editor Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <textarea 
+            id="markdown-content" 
+            class="border p-4 w-full h-64 rounded-lg" 
+            placeholder="Write your markdown here..."></textarea>
+        <div 
+            id="html-preview" 
+            class="border p-4 w-full h-64 rounded-lg bg-white overflow-auto prose"></div>
+    </div>
+
+    <!-- Screenshot Preview -->
+    <div id="screenshot-preview" class="mt-4"></div>
+</div>
+
+<script>
+    const markdownContent = document.getElementById('markdown-content');
+    const htmlPreview = document.getElementById('html-preview');
+    const screenshotBtn = document.getElementById('screenshot-btn');
+    const widthInput = document.getElementById('width');
+    const heightInput = document.getElementById('height');
+    const screenshotPreview = document.getElementById('screenshot-preview');
+
+    // Update preview on input
+    markdownContent.addEventListener('input', function () {
+        htmlPreview.innerHTML = marked.parse(markdownContent.value);
+    });
+
+    // Take screenshot
+    screenshotBtn.addEventListener('click', async function () {
+        // Set dimensions
+        const width = parseInt(widthInput.value);
+        const height = parseInt(heightInput.value);
+        
+        // Create a temporary div for the screenshot
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = marked.parse(markdownContent.value);
+        tempDiv.className = 'prose bg-white p-4';
+        tempDiv.style.width = `${width}px`;
+        tempDiv.style.height = `${height}px`;
+        tempDiv.style.overflow = 'auto';
+        
+        // Add to document temporarily
+        document.body.appendChild(tempDiv);
+        
+        // Take screenshot
+        const canvas = await html2canvas(tempDiv, {
+            scale: 1,
+            width: width,
+            height: height,
+            backgroundColor: '#ffffff'
+        });
+        
+        // Remove temporary div
+        document.body.removeChild(tempDiv);
+        
+        // Convert to image and download
+        const image = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = 'markdown-screenshot.png';
+        link.href = image;
+        link.click();
+        
+        // Show preview
+        screenshotPreview.innerHTML = `
+            <h2 class="text-xl font-bold mt-4 mb-2">Screenshot Preview</h2>
+            <img src="${image}" alt="Screenshot preview" class="border rounded-lg">
+        `;
+    });
+</script>
+
+</body>
+</html>
