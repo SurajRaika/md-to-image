@@ -28,6 +28,9 @@
             <label for="height" class="text-sm">Height:</label>
             <input type="number" id="height" value="700" class="border rounded px-2 py-1 w-20">
         </div>
+        <div id="loading-indicator" class="hidden text-blue-500">
+            Loading content...
+        </div>
     </div>
 
     <!-- Editor Grid -->
@@ -52,6 +55,26 @@
     const widthInput = document.getElementById('width');
     const heightInput = document.getElementById('height');
     const screenshotPreview = document.getElementById('screenshot-preview');
+    const loadingIndicator = document.getElementById('loading-indicator');
+
+    // Function to wait for an image to load
+    function waitForImageToLoad(img) {
+        return new Promise((resolve, reject) => {
+            if (img.complete) {
+                resolve();
+            } else {
+                img.addEventListener('load', resolve);
+                img.addEventListener('error', reject);
+            }
+        });
+    }
+
+    // Function to wait for all images in a container to load
+    async function waitForAllImages(container) {
+        const images = container.getElementsByTagName('img');
+        const imagePromises = Array.from(images).map(img => waitForImageToLoad(img));
+        return Promise.all(imagePromises);
+    }
 
     // Update preview on input
     markdownContent.addEventListener('input', function () {
@@ -60,44 +83,75 @@
 
     // Take screenshot
     screenshotBtn.addEventListener('click', async function () {
-        // Set dimensions
-        const width = parseInt(widthInput.value);
-        const height = parseInt(heightInput.value);
-        
-        // Create a temporary div for the screenshot
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = marked.parse(markdownContent.value);
-        tempDiv.className = 'prose bg-white p-4';
-        tempDiv.style.width = `${width}px`;
-        tempDiv.style.height = `${height}px`;
-        tempDiv.style.overflow = 'auto';
-        
-        // Add to document temporarily
-        document.body.appendChild(tempDiv);
-        
-        // Take screenshot
-        const canvas = await html2canvas(tempDiv, {
-            scale: 1,
-            width: width,
-            height: height,
-            backgroundColor: '#ffffff'
-        });
-        
-        // Remove temporary div
-        document.body.removeChild(tempDiv);
-        
-        // Convert to image and download
-        const image = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = 'markdown-screenshot.png';
-        link.href = image;
-        link.click();
-        
-        // Show preview
-        screenshotPreview.innerHTML = `
-            <h2 class="text-xl font-bold mt-4 mb-2">Screenshot Preview</h2>
-            <img src="${image}" alt="Screenshot preview" class="border rounded-lg">
-        `;
+        try {
+            loadingIndicator.classList.remove('hidden');
+            screenshotBtn.disabled = true;
+            
+            // Set dimensions
+            const width = parseInt(widthInput.value);
+            const height = parseInt(heightInput.value);
+            
+            // Create a wrapper div for centering
+            const wrapperDiv = document.createElement('div');
+            wrapperDiv.style.width = `${width}px`;
+            wrapperDiv.style.height = `${height}px`;
+            wrapperDiv.style.position = 'relative';
+            wrapperDiv.style.backgroundColor = '#ffffff';
+            
+            // Create content div
+            const contentDiv = document.createElement('div');
+            contentDiv.innerHTML = marked.parse(markdownContent.value);
+            contentDiv.className = 'prose mx-auto p-4';
+            contentDiv.style.maxWidth = '100%';
+            contentDiv.style.position = 'absolute';
+            contentDiv.style.left = '50%';
+            contentDiv.style.transform = 'translateX(-50%)';
+            contentDiv.style.width = '100%';
+            
+            // Add content div to wrapper
+            wrapperDiv.appendChild(contentDiv);
+            
+            // Add to document temporarily
+            document.body.appendChild(wrapperDiv);
+            
+            // Wait for all images to load
+            await waitForAllImages(wrapperDiv);
+            
+            // Add a small delay to ensure everything is rendered
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Take screenshot
+            const canvas = await html2canvas(wrapperDiv, {
+                scale: 1,
+                width: width,
+                height: height,
+                backgroundColor: '#ffffff',
+                logging: false,
+                useCORS: true
+            });
+            
+            // Remove temporary div
+            document.body.removeChild(wrapperDiv);
+            
+            // Convert to image and download
+            const image = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = 'markdown-screenshot.png';
+            link.href = image;
+            link.click();
+            
+            // Show preview
+            screenshotPreview.innerHTML = `
+                <h2 class="text-xl font-bold mt-4 mb-2">Screenshot Preview</h2>
+                <img src="${image}" alt="Screenshot preview" class="border rounded-lg">
+            `;
+        } catch (error) {
+            console.error('Error taking screenshot:', error);
+            alert('Error taking screenshot. Please try again.');
+        } finally {
+            loadingIndicator.classList.add('hidden');
+            screenshotBtn.disabled = false;
+        }
     });
 </script>
 
